@@ -136,3 +136,16 @@ curl -l http://localhost:8010/killswitch
 2024-02-09T10:32 Started executing script tasks.
 2024-02-09T10:32 There is no vpn tunnel established to secure (iface tun0).
 ```
+
+Add the optional `search` parameter to return only lines containing the
+specified string. The search is case-sensitive and URL-encoded by `curl`:
+
+```bash
+curl -G --data-urlencode 'search=vpn tunnel' http://localhost:8010/killswitch/
+```
+
+If no lines match, the response is:
+
+```text
+No matches found in log.
+```

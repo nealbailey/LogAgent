@@ -23,7 +23,7 @@ import socket
 import json
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from urllib.parse import unquote
+from urllib.parse import parse_qs, unquote, urlsplit
 
 from logreader import read_log
 
@@ -33,6 +33,12 @@ PORT = 8010
 CONFIG_FILE = Path(__file__).with_name("logagent.json")
 with CONFIG_FILE.open(encoding="utf-8") as config_file:
     LOGS = json.load(config_file)["logs"]
+
+
+    def filter_log(contents: str, search: str) -> str:
+        """Return log lines containing the search string."""
+        matches = [line for line in contents.splitlines() if search in line]
+        return "\n".join(matches) if matches else "No matches found in log."
 
 
 class LogAgentHandler(BaseHTTPRequestHandler):
@@ -59,7 +65,9 @@ class LogAgentHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
 
-        path = unquote(self.path.split("?", 1)[0])
+        request = urlsplit(self.path)
+        path = unquote(request.path)
+        search = parse_qs(request.query, keep_blank_values=True).get("search", [None])[0]
 
         # Remove leading/trailing slashes
         log_name = path.strip("/")
@@ -78,6 +86,8 @@ class LogAgentHandler(BaseHTTPRequestHandler):
 
             try:
                 contents = read_log(LOGS[log_name])
+                if search:
+                    contents = filter_log(contents, search)
 
                 self.send_text(contents)
 
