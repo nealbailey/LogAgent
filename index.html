@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bailey Log Viewer</title>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #171e2e;
+    --panel-alt: #1d2740;
+    --border: #2a3550;
+    --text: #e7ecf7;
+    --muted: #8b97b3;
+    --accent: #4f8cff;
+    --accent-soft: rgba(79, 140, 255, 0.15);
+    --ok: #3ddc97;
+    --err: #ff6b6b;
+    --radius: 14px;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: linear-gradient(180deg, var(--bg), #0a0e17 60%);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 20px 14px 60px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+
+  header h1 {
+    font-size: 1.4rem;
+    letter-spacing: 0.08em;
+    margin: 0 0 4px;
+    font-weight: 700;
+  }
+
+  header p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+
+  .container {
+    max-width: 640px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .host-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  }
+
+  .host-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    cursor: pointer;
+    background: var(--panel-alt);
+    border: none;
+    width: 100%;
+    text-align: left;
+    color: inherit;
+    font: inherit;
+  }
+
+  .host-icon {
+    font-size: 1.4rem;
+    flex-shrink: 0;
+  }
+
+  .host-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .host-name {
+    font-weight: 700;
+    font-size: 1rem;
+    letter-spacing: 0.03em;
+  }
+
+  .host-meta {
+    color: var(--muted);
+    font-size: 0.78rem;
+    margin-top: 2px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+    flex-shrink: 0;
+  }
+
+  .status-dot.online { background: var(--ok); }
+  .status-dot.offline { background: var(--err); }
+
+  .log-list {
+    list-style: none;
+    margin: 0;
+    padding: 6px 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .log-list a {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    color: var(--text);
+    text-decoration: none;
+    font-size: 0.9rem;
+    background: transparent;
+    transition: background 0.15s ease;
+  }
+
+  .log-list a:hover,
+  .log-list a:active {
+    background: var(--accent-soft);
+  }
+
+  .log-list a::before {
+    content: "📄";
+    font-size: 0.85rem;
+  }
+
+  .error-text {
+    padding: 10px 16px 16px;
+    color: var(--err);
+    font-size: 0.85rem;
+  }
+
+  .empty-text {
+    padding: 10px 16px 16px;
+    color: var(--muted);
+    font-size: 0.85rem;
+    font-style: italic;
+  }
+
+  /* Modal for viewing root / log responses */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(5, 8, 14, 0.75);
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 50;
+  }
+
+  .modal-backdrop.open {
+    display: flex;
+  }
+
+  .modal {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius) var(--radius) 0 0;
+    width: 100%;
+    max-width: 640px;
+    max-height: 82vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.4);
+  }
+
+  @media (min-width: 700px) {
+    .modal-backdrop { align-items: center; }
+    .modal { border-radius: var(--radius); max-height: 78vh; }
+  }
+
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .modal-title {
+    font-weight: 700;
+    font-size: 0.95rem;
+    word-break: break-all;
+  }
+
+  .modal-close {
+    background: rgba(255, 255, 255, 0.08);
+    border: none;
+    color: var(--text);
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    font-size: 1rem;
+    cursor: pointer;
+    flex-shrink: 0;
+    margin-left: 12px;
+  }
+
+  .modal-body {
+    padding: 14px 16px;
+    overflow-y: auto;
+    font-family: "SFMono-Regular", Consolas, Menlo, monospace;
+    font-size: 0.8rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.45;
+    color: var(--text);
+  }
+
+  .modal-body.loading,
+  .modal-body.error {
+    font-family: inherit;
+    color: var(--muted);
+  }
+
+  .modal-body.error { color: var(--err); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>BAILEYSOFT LAN LOG VIEWER</h1>
+  <p>Tap a host to view its status, or a log to view its contents</p>
+</header>
+
+<div class="container" id="hosts"></div>
+
+<div class="modal-backdrop" id="modal-backdrop">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title">Loading&hellip;</div>
+      <button class="modal-close" id="modal-close" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+// ---------------------------------------------------------------------
+// EDIT ME: list every LogAgent host you want this dashboard to display.
+// Each entry is "ip-or-hostname:port". LogAgent listens on 8010 by default.
+// ---------------------------------------------------------------------
+const LOGAGENT_HOSTS = [
+  "192.168.2.1:8010",
+  "192.168.2.2:8010",
+];
+// ---------------------------------------------------------------------
+
+const hostsContainer = document.getElementById("hosts");
+const modalBackdrop = document.getElementById("modal-backdrop");
+const modalTitle = document.getElementById("modal-title");
+const modalBody = document.getElementById("modal-body");
+
+function openModal(title) {
+  modalTitle.textContent = title;
+  modalBody.className = "modal-body loading";
+  modalBody.textContent = "Loading\u2026";
+  modalBackdrop.classList.add("open");
+}
+
+function closeModal() {
+  modalBackdrop.classList.remove("open");
+}
+
+document.getElementById("modal-close").addEventListener("click", closeModal);
+modalBackdrop.addEventListener("click", (event) => {
+  if (event.target === modalBackdrop) closeModal();
+});
+
+async function showEndpoint(title, url) {
+  openModal(title);
+
+  try {
+    const response = await fetch(url);
+    const text = await response.text();
+
+    modalBody.className = response.ok ? "modal-body" : "modal-body error";
+    modalBody.textContent = text;
+  } catch (err) {
+    modalBody.className = "modal-body error";
+    modalBody.textContent = "Unable to reach " + url + " (" + err.message + ")";
+  }
+}
+
+function buildHostCard(hostPort) {
+  const card = document.createElement("div");
+  card.className = "host-card";
+
+  const header = document.createElement("button");
+  header.className = "host-header";
+  header.type = "button";
+
+  const icon = document.createElement("span");
+  icon.className = "host-icon";
+  icon.textContent = "\u{1F5A5}\uFE0F";
+
+  const info = document.createElement("div");
+  info.className = "host-info";
+
+  const name = document.createElement("div");
+  name.className = "host-name";
+  name.textContent = hostPort;
+
+  const meta = document.createElement("div");
+  meta.className = "host-meta";
+  meta.innerHTML = '<span class="badge"><span class="status-dot"></span>checking\u2026</span>';
+
+  info.appendChild(name);
+  info.appendChild(meta);
+
+  header.appendChild(icon);
+  header.appendChild(info);
+  header.addEventListener("click", () => {
+    showEndpoint(hostPort, "http://" + hostPort + "/");
+  });
+
+  card.appendChild(header);
+
+  const list = document.createElement("ul");
+  list.className = "log-list";
+  card.appendChild(list);
+
+  hostsContainer.appendChild(card);
+
+  loadHost(hostPort, name, meta, list);
+}
+
+async function loadHost(hostPort, nameEl, metaEl, listEl) {
+  const baseUrl = "http://" + hostPort;
+
+  try {
+    const response = await fetch(baseUrl + "/");
+    if (!response.ok) throw new Error("HTTP " + response.status);
+
+    const data = await response.json();
+
+    nameEl.textContent = (data.hostname || hostPort).toUpperCase();
+
+    metaEl.innerHTML = "";
+    metaEl.appendChild(makeBadge("online", hostPort));
+    if (data.build_version) metaEl.appendChild(makeBadge(null, "v" + data.build_version));
+    metaEl.appendChild(makeBadge(null, (data.logs || []).length + " logs"));
+
+    listEl.innerHTML = "";
+    const logs = data.logs || [];
+
+    if (logs.length === 0) {
+      const empty = document.createElement("li");
+      empty.className = "empty-text";
+      empty.textContent = "No logs configured on this host.";
+      listEl.appendChild(empty);
+      return;
+    }
+
+    logs.forEach((logName) => {
+      const item = document.createElement("li");
+      const link = document.createElement("a");
+
+      link.href = baseUrl + "/" + encodeURIComponent(logName);
+      link.textContent = logName;
+      link.addEventListener("click", (event) => {
+        event.preventDefault();
+        showEndpoint(data.hostname ? data.hostname.toUpperCase() + " \u2013 " + logName : logName, link.href);
+      });
+
+      item.appendChild(link);
+      listEl.appendChild(item);
+    });
+  } catch (err) {
+    metaEl.innerHTML = "";
+    metaEl.appendChild(makeBadge("offline", hostPort));
+
+    const errorItem = document.createElement("li");
+    errorItem.className = "error-text";
+    errorItem.textContent = "Unreachable: " + err.message;
+    listEl.appendChild(errorItem);
+  }
+}
+
+function makeBadge(statusClass, text) {
+  const badge = document.createElement("span");
+  badge.className = "badge";
+
+  if (statusClass) {
+    const dot = document.createElement("span");
+    dot.className = "status-dot " + statusClass;
+    badge.appendChild(dot);
+  }
+
+  badge.appendChild(document.createTextNode(text));
+  return badge;
+}
+
+LOGAGENT_HOSTS.forEach(buildHostCard);
+</script>
+
+</body>
+</html>

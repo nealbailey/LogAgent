@@ -1,0 +1,14 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Serve dashboard (python http.server)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "http.server",
+      "args": ["8000"],
+      "cwd": "${workspaceFolder}",
+      "justMyCode": true
+    }
+  ]
+}
