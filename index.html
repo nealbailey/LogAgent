@@ -399,7 +399,7 @@ async function loadHost(hostPort, nameEl, metaEl, listEl) {
     if (data.build_version) metaEl.appendChild(makeBadge(null, "v" + data.build_version));
     metaEl.appendChild(makeBadge(null, (data.logs || []).length + " logs"));
     if (data.line_limit && data.line_limit.enabled) {
-      metaEl.appendChild(makeBadge(null, "line-limit: " + data.line_limit.lines));
+      metaEl.appendChild(makeBadge(null, "limit: " + data.line_limit.lines + " lines"));
     }
 
     listEl.innerHTML = "";
