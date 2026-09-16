@@ -128,7 +128,7 @@ curl -l http://localhost:8010/
 {
 	"hostname": "popos-desktop",
 	"port": 8010,
-	"build_version": "1.4.0",
+	"build_version": "1.7.1",
 	"line_limit": {
 		"enabled": true,
 		"lines": 200
