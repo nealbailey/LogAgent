@@ -1,4 +1,10 @@
 {
+    "settings": {
+        "line_limit": {
+            "enabled": true,
+            "lines": 500
+        }
+    },
     "logs": {
         "nordvpn": "/var/log/nordvpn.sh.log",
         "killswitch": "/var/log/killswitch.sh.log"

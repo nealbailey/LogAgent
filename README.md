@@ -14,12 +14,23 @@ Tiny log reader. This agent provides remote access to pre-determined log files o
 
 	```json
 	{
+	  "settings": {
+		 "line_limit": {
+			"enabled": true,
+			"lines": 200
+		 }
+	  },
 	  "logs": {
 		 "nordvpn": "/var/log/nordvpn.sh.log",
 		 "killswitch": "/var/log/killswitch.sh.log"
 	  }
 	}
 	```
+
+	`settings.line_limit` caps unfiltered log responses to the last `lines`
+	lines. Set `enabled` to `false` (or remove the `settings` block) to always
+	return the full log. This limit is ignored whenever a request includes the
+	`search` parameter — searches always scan the entire log.
 
 	Ensure the user running LogAgent has permission to read the configured files.
 

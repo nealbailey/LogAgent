@@ -29,11 +29,14 @@ from logreader import read_log
 
 HOST = "0.0.0.0"
 PORT = 8010
-BUILD_VERSION = "1.5.0"  # increment on every change so clients can detect stale versions
+BUILD_VERSION = "1.6.0"  # increment on every change so clients can detect stale versions
 
 CONFIG_FILE = Path(__file__).with_name("logagent.json")
 with CONFIG_FILE.open(encoding="utf-8") as config_file:
-    LOGS = json.load(config_file)["logs"]
+    CONFIG = json.load(config_file)
+
+LOGS = CONFIG["logs"]
+LINE_LIMIT = CONFIG.get("settings", {}).get("line_limit", {})
 
 
 def filter_log(contents: str, search: str) -> str:
@@ -41,6 +44,17 @@ def filter_log(contents: str, search: str) -> str:
     search = search.lower()
     matches = [line for line in contents.splitlines() if search in line.lower()]
     return "\n".join(matches) if matches else "No matches found in log."
+
+
+def limit_log(contents: str) -> str:
+    """Return only the last N lines of the log, per the line_limit setting."""
+    if not LINE_LIMIT.get("enabled"):
+        return contents
+
+    lines = contents.splitlines()
+    limit = LINE_LIMIT.get("lines")
+
+    return "\n".join(lines[-limit:]) if limit else contents
 
 
 class LogAgentHandler(BaseHTTPRequestHandler):
@@ -93,6 +107,8 @@ class LogAgentHandler(BaseHTTPRequestHandler):
                 contents = read_log(LOGS[log_name])
                 if search:
                     contents = filter_log(contents, search)
+                else:
+                    contents = limit_log(contents)
 
                 self.send_text(contents)
 

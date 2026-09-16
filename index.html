@@ -227,6 +227,28 @@
     margin-left: 12px;
   }
 
+  .modal-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  .modal-raw-link {
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 0.8rem;
+    font-weight: 600;
+    white-space: nowrap;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: var(--accent-soft);
+  }
+
+  .modal-raw-link:hover {
+    text-decoration: underline;
+  }
+
   .modal-body {
     padding: 14px 16px;
     overflow-y: auto;
@@ -260,7 +282,10 @@
   <div class="modal">
     <div class="modal-header">
       <div class="modal-title" id="modal-title">Loading&hellip;</div>
-      <button class="modal-close" id="modal-close" aria-label="Close">&times;</button>
+      <div class="modal-actions">
+        <a class="modal-raw-link" id="modal-raw-link" href="#" target="_blank" rel="noopener">Raw ↗</a>
+        <button class="modal-close" id="modal-close" aria-label="Close">&times;</button>
+      </div>
     </div>
     <div class="modal-body" id="modal-body"></div>
   </div>
@@ -281,11 +306,13 @@ const hostsContainer = document.getElementById("hosts");
 const modalBackdrop = document.getElementById("modal-backdrop");
 const modalTitle = document.getElementById("modal-title");
 const modalBody = document.getElementById("modal-body");
+const modalRawLink = document.getElementById("modal-raw-link");
 
-function openModal(title) {
+function openModal(title, url) {
   modalTitle.textContent = title;
   modalBody.className = "modal-body loading";
   modalBody.textContent = "Loading\u2026";
+  modalRawLink.href = url;
   modalBackdrop.classList.add("open");
 }
 
@@ -299,7 +326,7 @@ modalBackdrop.addEventListener("click", (event) => {
 });
 
 async function showEndpoint(title, url) {
-  openModal(title);
+  openModal(title, url);
 
   try {
     const response = await fetch(url);
