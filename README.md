@@ -129,6 +129,10 @@ curl -l http://localhost:8010/
 	"hostname": "popos-desktop",
 	"port": 8010,
 	"build_version": "1.4.0",
+	"line_limit": {
+		"enabled": true,
+		"lines": 200
+	},
 	"logs": [
 		"nordvpn",
 		"killswitch"

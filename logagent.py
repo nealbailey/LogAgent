@@ -29,7 +29,7 @@ from logreader import read_log
 
 HOST = "0.0.0.0"
 PORT = 8010
-BUILD_VERSION = "1.6.0"  # increment on every change so clients can detect stale versions
+BUILD_VERSION = "1.7.0"  # increment on every change so clients can detect stale versions
 
 CONFIG_FILE = Path(__file__).with_name("logagent.json")
 with CONFIG_FILE.open(encoding="utf-8") as config_file:
@@ -96,6 +96,7 @@ class LogAgentHandler(BaseHTTPRequestHandler):
                 "hostname": socket.gethostname(),
                 "port": PORT,
                 "build_version": BUILD_VERSION,
+                "line_limit": LINE_LIMIT if LINE_LIMIT.get("enabled") else None,
                 "logs": list(LOGS.keys())
             })
             return
