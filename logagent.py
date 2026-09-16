@@ -29,16 +29,18 @@ from logreader import read_log
 
 HOST = "0.0.0.0"
 PORT = 8010
+BUILD_VERSION = "1.4.0"  # increment on every change so clients can detect stale versions
 
 CONFIG_FILE = Path(__file__).with_name("logagent.json")
 with CONFIG_FILE.open(encoding="utf-8") as config_file:
     LOGS = json.load(config_file)["logs"]
 
 
-    def filter_log(contents: str, search: str) -> str:
-        """Return log lines containing the search string."""
-        matches = [line for line in contents.splitlines() if search in line]
-        return "\n".join(matches) if matches else "No matches found in log."
+def filter_log(contents: str, search: str) -> str:
+    """Return log lines containing the search string (case-insensitive)."""
+    search = search.lower()
+    matches = [line for line in contents.splitlines() if search in line.lower()]
+    return "\n".join(matches) if matches else "No matches found in log."
 
 
 class LogAgentHandler(BaseHTTPRequestHandler):
@@ -77,6 +79,7 @@ class LogAgentHandler(BaseHTTPRequestHandler):
             self.send_json({
                 "hostname": socket.gethostname(),
                 "port": PORT,
+                "build_version": BUILD_VERSION,
                 "logs": list(LOGS.keys())
             })
             return
@@ -129,7 +132,7 @@ def main():
 
     server = HTTPServer((HOST, PORT), LogAgentHandler)
 
-    print(f"Log agent listening on {HOST}:{PORT}")
+    print(f"Log agent listening on {HOST}:{PORT} (build {BUILD_VERSION})")
 
     try:
         server.serve_forever()

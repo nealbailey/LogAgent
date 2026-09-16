@@ -117,6 +117,7 @@ curl -l http://localhost:8010/
 {
 	"hostname": "popos-desktop",
 	"port": 8010,
+	"build_version": "1.4.0",
 	"logs": [
 		"nordvpn",
 		"killswitch"
@@ -138,7 +139,7 @@ curl -l http://localhost:8010/killswitch
 ```
 
 Add the optional `search` parameter to return only lines containing the
-specified string. The search is case-sensitive and URL-encoded by `curl`:
+specified string. The search is case-insensitive and URL-encoded by `curl`:
 
 ```bash
 curl -G --data-urlencode 'search=vpn tunnel' http://localhost:8010/killswitch/
