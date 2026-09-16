@@ -1,0 +1,6 @@
+{
+    "logs": {
+        "nordvpn": "/var/log/nordvpn.sh.log",
+        "killswitch": "/var/log/killswitch.sh.log"
+    }
+}

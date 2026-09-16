@@ -1,0 +1,135 @@
+#!/usr/bin/env python3
+# ---------------------------------------------------------------------
+# Source File: logagent.py
+# Create Date: 09/19/2026 09:15
+# Last Updated: 09/19/2026 09:15
+# Author: Neal T. Bailey <nealbailey@hotmail.com>
+#
+# ----------------------------------------------------------------------
+# GNU GENERAL PUBLIC LICENSE
+# ----------------------------------------------------------------------
+# Version 2, June 1991 
+# Copyright (C) 1989, 1991 Free Software Foundation, Inc.  
+# 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+#
+# Everyone is permitted to copy and distribute verbatim copies
+# of this license document, but changing it is not allowed.
+#
+# https://www.gnu.org/licenses/gpl-2.0.html
+#-----------------------------------------------------------------------
+# Copyright (c) 2010-2015 Baileysoft Solutions
+#-----------------------------------------------------------------------
+import socket
+import json
+from pathlib import Path
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from urllib.parse import unquote
+
+from logreader import read_log
+
+HOST = "0.0.0.0"
+PORT = 8010
+
+CONFIG_FILE = Path(__file__).with_name("logagent.json")
+with CONFIG_FILE.open(encoding="utf-8") as config_file:
+    LOGS = json.load(config_file)["logs"]
+
+
+class LogAgentHandler(BaseHTTPRequestHandler):
+
+    def send_json(self, data, status_code=200):
+        response = json.dumps(data, indent=2).encode("utf-8")
+
+        self.send_response(status_code)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(response)))
+        self.end_headers()
+
+        self.wfile.write(response)
+
+    def send_text(self, text, status_code=200):
+        response = text.encode("utf-8")
+
+        self.send_response(status_code)
+        self.send_header("Content-Type", "text/plain; charset=utf-8")
+        self.send_header("Content-Length", str(len(response)))
+        self.end_headers()
+
+        self.wfile.write(response)
+
+    def do_GET(self):
+
+        path = unquote(self.path.split("?", 1)[0])
+
+        # Remove leading/trailing slashes
+        log_name = path.strip("/")
+        
+        # Return the list of available logs
+        if log_name == "":
+            self.send_json({
+                "hostname": socket.gethostname(),
+                "port": PORT,
+                "logs": list(LOGS.keys())
+            })
+            return
+
+        # /logname
+        if log_name in LOGS:
+
+            try:
+                contents = read_log(LOGS[log_name])
+
+                self.send_text(contents)
+
+            except FileNotFoundError:
+                self.send_json({
+                    "error": "Log file not found",
+                    "log": log_name
+                }, 404)
+
+            except PermissionError:
+                self.send_json({
+                    "error": "Permission denied",
+                    "log": log_name
+                }, 403)
+
+            except Exception as exc:
+                self.send_json({
+                    "error": "Unable to read log",
+                    "log": log_name,
+                    "details": str(exc)
+                }, 500)
+
+            return
+
+        # Unknown endpoint
+        self.send_json({
+            "error": "Unknown log",
+            "available_logs": list(LOGS.keys())
+        }, 404)
+
+    def log_message(self, format, *args):
+        """
+        Keep the standard HTTP server from printing every request.
+        """
+        return
+
+
+def main():
+
+    server = HTTPServer((HOST, PORT), LogAgentHandler)
+
+    print(f"Log agent listening on {HOST}:{PORT}")
+
+    try:
+        server.serve_forever()
+
+    except KeyboardInterrupt:
+        print("\nStopping log agent...")
+
+    finally:
+        server.server_close()
+
+
+if __name__ == "__main__":
+    main()
