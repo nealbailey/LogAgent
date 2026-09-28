@@ -8,5 +8,28 @@
     "logs": {
         "nordvpn": "/var/log/nordvpn.sh.log",
         "killswitch": "/var/log/killswitch.sh.log"
+    },
+    "commands": {
+        "nordvpn-start": {
+            "description": "Establishes a new tunnel connection to the VPN",
+            "command": "/home/developer/git/Bash/nordvpn.sh",
+            "args": ["-s", "-l"],
+            "timeout": 60,
+            "sudo": true
+        },
+        "nordvpn-stop": {
+            "description": "Destroys the existing VPN tunnel",
+            "command": "/home/developer/git/Bash/nordvpn.sh",
+            "args": ["-d", "-l"],
+            "timeout": 30,
+            "sudo": true
+        },
+        "killswitch-start": {
+            "description": "Enables the killswitch to protect the VPN activity",
+            "command": "/home/developer/git/Bash/killswitch.sh",
+            "args": ["-s", "-l"],
+            "timeout": 20,
+            "sudo": true
+        }
     }
 }

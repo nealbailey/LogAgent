@@ -155,6 +155,10 @@
     font-size: 0.85rem;
   }
 
+  .log-list a.command::before {
+    content: "⚡";
+  }
+
   .error-text {
     padding: 10px 16px 16px;
     color: var(--err);
@@ -313,6 +317,7 @@ function openModal(title, url) {
   modalBody.className = "modal-body loading";
   modalBody.textContent = "Loading\u2026";
   modalRawLink.href = url;
+  modalRawLink.style.display = "";
   modalBackdrop.classList.add("open");
 }
 
@@ -334,6 +339,29 @@ async function showEndpoint(title, url) {
 
     modalBody.className = response.ok ? "modal-body" : "modal-body error";
     modalBody.textContent = text;
+  } catch (err) {
+    modalBody.className = "modal-body error";
+    modalBody.textContent = "Unable to reach " + url + " (" + err.message + ")";
+  }
+}
+
+async function runCommand(title, url) {
+  if (!window.confirm("Execute command '" + title + "'?")) return;
+
+  openModal(title, url);
+  modalRawLink.style.display = "none";
+  modalBody.textContent = "Executing\u2026";
+
+  try {
+    const response = await fetch(url, { method: "POST" });
+    const text = await response.text();
+
+    modalBody.className = response.ok ? "modal-body" : "modal-body error";
+    try {
+      modalBody.textContent = JSON.stringify(JSON.parse(text), null, 2);
+    } catch {
+      modalBody.textContent = text;
+    }
   } catch (err) {
     modalBody.className = "modal-body error";
     modalBody.textContent = "Unable to reach " + url + " (" + err.message + ")";
@@ -398,6 +426,8 @@ async function loadHost(hostPort, nameEl, metaEl, listEl) {
     metaEl.appendChild(makeBadge("online", hostPort));
     if (data.build_version) metaEl.appendChild(makeBadge(null, "v" + data.build_version));
     metaEl.appendChild(makeBadge(null, (data.logs || []).length + " logs"));
+    const commandNames = data.commands || [];
+    if (commandNames.length > 0) metaEl.appendChild(makeBadge(null, commandNames.length + " commands"));
     //if (data.line_limit && data.line_limit.enabled) {
     //  metaEl.appendChild(makeBadge(null, "limit: " + data.line_limit.lines + " lines"));
     //}
@@ -405,13 +435,15 @@ async function loadHost(hostPort, nameEl, metaEl, listEl) {
     listEl.innerHTML = "";
     const logs = data.logs || [];
 
-    if (logs.length === 0) {
+    if (logs.length === 0 && commandNames.length === 0) {
       const empty = document.createElement("li");
       empty.className = "empty-text";
       empty.textContent = "No logs configured on this host.";
       listEl.appendChild(empty);
       return;
     }
+
+    const hostLabel = data.hostname ? data.hostname.toUpperCase() + " \u2013 " : "";
 
     logs.forEach((logName) => {
       const item = document.createElement("li");
@@ -421,7 +453,24 @@ async function loadHost(hostPort, nameEl, metaEl, listEl) {
       link.textContent = logName;
       link.addEventListener("click", (event) => {
         event.preventDefault();
-        showEndpoint(data.hostname ? data.hostname.toUpperCase() + " \u2013 " + logName : logName, link.href);
+        showEndpoint(hostLabel + logName, link.href);
+      });
+
+      item.appendChild(link);
+      listEl.appendChild(item);
+    });
+
+    commandNames.forEach((commandName) => {
+      const item = document.createElement("li");
+      const link = document.createElement("a");
+      const url = baseUrl + "/commands/" + encodeURIComponent(commandName);
+
+      link.href = "#";
+      link.className = "command";
+      link.textContent = commandName;
+      link.addEventListener("click", (event) => {
+        event.preventDefault();
+        runCommand(hostLabel + commandName, url);
       });
 
       item.appendChild(link);

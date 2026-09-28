@@ -21,15 +21,16 @@
 #-----------------------------------------------------------------------
 import socket
 import json
+import subprocess
 from pathlib import Path
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote, urlsplit
 
 from logreader import read_log
 
 HOST = "0.0.0.0"
 PORT = 8010
-BUILD_VERSION = "1.7.1"  # increment on every change so clients can detect stale versions
+BUILD_VERSION = "1.8.0"  # increment on every change so clients can detect stale versions
 
 CONFIG_FILE = Path(__file__).with_name("logagent.json")
 with CONFIG_FILE.open(encoding="utf-8") as config_file:
@@ -37,6 +38,46 @@ with CONFIG_FILE.open(encoding="utf-8") as config_file:
 
 LOGS = CONFIG["logs"]
 LINE_LIMIT = CONFIG.get("settings", {}).get("line_limit", {})
+COMMANDS = CONFIG.get("commands") or {}
+DEFAULT_COMMAND_TIMEOUT = 60
+
+
+def execute_command(command: dict) -> dict:
+    """Execute a configured command, optionally through non-interactive sudo."""
+
+    timeout = command.get("timeout") or DEFAULT_COMMAND_TIMEOUT
+    argv = [command["command"], *(str(arg) for arg in command.get("args") or [])]
+
+    # sudo is only used when explicitly set to true in the config
+    if command.get("sudo") is True:
+        argv = ["sudo", "-n", *argv]
+
+    try:
+        result = subprocess.run(
+            argv,
+            capture_output=True,
+            text=True,
+            timeout=timeout
+        )
+
+        return {
+            "success": result.returncode == 0,
+            "exit_code": result.returncode,
+            "stdout": result.stdout,
+            "stderr": result.stderr
+        }
+
+    except subprocess.TimeoutExpired:
+        return {
+            "success": False,
+            "error": f"Command timed out after {timeout} seconds"
+        }
+
+    except Exception as exc:
+        return {
+            "success": False,
+            "error": str(exc)
+        }
 
 
 def filter_log(contents: str, search: str) -> str:
@@ -98,7 +139,8 @@ class LogAgentHandler(BaseHTTPRequestHandler):
                 "port": PORT,
                 "build_version": BUILD_VERSION,
                 "line_limit": LINE_LIMIT if LINE_LIMIT.get("enabled") else None,
-                "logs": list(LOGS.keys())
+                "logs": list(LOGS.keys()),
+                "commands": list(COMMANDS.keys())
             })
             return
 
@@ -141,6 +183,30 @@ class LogAgentHandler(BaseHTTPRequestHandler):
             "available_logs": list(LOGS.keys())
         }, 404)
 
+    def do_POST(self):
+
+        request = urlsplit(self.path)
+        path = unquote(request.path).strip("/")
+
+        if not path.startswith("commands/"):
+            self.send_json({
+                "error": "Unknown endpoint"
+            }, 404)
+            return
+
+        command_name = path.removeprefix("commands/")
+
+        if command_name not in COMMANDS:
+            self.send_json({
+                "error": "Unknown command",
+                "available_commands": list(COMMANDS.keys())
+            }, 404)
+            return
+
+        result = execute_command(COMMANDS[command_name])
+
+        self.send_json(result, 200 if result.get("success") else 500)
+
     def log_message(self, format, *args):
         """
         Keep the standard HTTP server from printing every request.
@@ -150,7 +216,7 @@ class LogAgentHandler(BaseHTTPRequestHandler):
 
 def main():
 
-    server = HTTPServer((HOST, PORT), LogAgentHandler)
+    server = ThreadingHTTPServer((HOST, PORT), LogAgentHandler)
 
     print(f"Log agent listening on {HOST}:{PORT} (build {BUILD_VERSION})")
 

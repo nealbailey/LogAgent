@@ -23,6 +23,15 @@ Tiny log reader. This agent provides remote access to pre-determined log files o
 	  "logs": {
 		 "nordvpn": "/var/log/nordvpn.sh.log",
 		 "killswitch": "/var/log/killswitch.sh.log"
+	  },
+	  "commands": {
+		 "nordvpn-start": {
+			"description": "Establishes a new tunnel connection to the VPN",
+			"command": "/home/developer/git/Bash/nordvpn.sh",
+			"args": ["-s", "-l"],
+			"timeout": 60,
+			"sudo": true
+		 }
 	  }
 	}
 	```
@@ -33,6 +42,35 @@ Tiny log reader. This agent provides remote access to pre-determined log files o
 	`search` parameter — searches always scan the entire log.
 
 	Ensure the user running LogAgent has permission to read the configured files.
+
+	`commands` is optional. Omit it (or leave it empty) if this agent should not
+	expose any executable commands. Each key becomes a command endpoint
+	(`POST /commands/<command-name>`). Supported fields:
+
+	| Field         | Required | Default | Description                                                        |
+	|---------------|----------|---------|--------------------------------------------------------------------|
+	| `command`     | Yes      | —       | Absolute path of the executable or script to run.                  |
+	| `description` | No       | —       | Human-readable description (for reference only; not returned by the API). |
+	| `args`        | No       | `[]`    | Array of arguments passed to the command.                          |
+	| `timeout`     | No       | `60`    | Seconds to allow the command to run before it is forcibly killed.  |
+	| `sudo`        | No       | `false` | Run the command via `sudo -n`. Only enabled when explicitly `true`. |
+
+	> **Important: commands with `"sudo": true` require a sudoers entry.**
+	> The `logagent` user does not, and should not, have general admin/sudo
+	> rights. LogAgent runs sudo commands non-interactively (`sudo -n`), so
+	> without a matching `NOPASSWD` rule the command will fail immediately.
+	> Edit the sudoers config with `sudo visudo` (or create a drop-in with
+	> `sudo visudo -f /etc/sudoers.d/logagent`) and add one line per script:
+	>
+	> ```text
+	> logagent ALL=(root) NOPASSWD: /home/developer/git/Bash/nordvpn.sh
+	> logagent ALL=(root) NOPASSWD: /home/developer/git/Bash/killswitch.sh
+	> ```
+	>
+	> Only grant the exact script paths configured in `logagent.json`. Make sure
+	> those scripts (and their parent directories) are owned by root and not
+	> writable by `logagent` or other non-admin users, otherwise the script
+	> could be modified and run as root.
 
 3. Start the agent:
 
@@ -114,11 +152,21 @@ be managed with `systemctl`.
 
 ## Usage
 
-LogAgent provides two HTTP GET endpoints.
+LogAgent provides HTTP GET endpoints for reading logs and HTTP POST endpoints
+for executing configured commands:
 
-### List available logs
+```text
+GET  /
+GET  /<log-name>
+POST /commands/<command-name>
+```
 
-Request `/` to return the hostname, port, and configured log names:
+### List available logs and commands
+
+Request `/` to return the hostname, port, configured log names, and any
+commands exposed by this agent. Only names are returned; command paths, args,
+timeouts, and sudo settings are never exposed (`commands` is `[]` when none are
+configured):
 
 ```bash
 curl -l http://localhost:8010/
@@ -128,7 +176,7 @@ curl -l http://localhost:8010/
 {
 	"hostname": "popos-desktop",
 	"port": 8010,
-	"build_version": "1.7.1",
+	"build_version": "1.8.0",
 	"line_limit": {
 		"enabled": true,
 		"lines": 200
@@ -136,6 +184,11 @@ curl -l http://localhost:8010/
 	"logs": [
 		"nordvpn",
 		"killswitch"
+	],
+	"commands": [
+		"nordvpn-start",
+		"nordvpn-stop",
+		"killswitch-start"
 	]
 }
 ```
@@ -165,3 +218,40 @@ If no lines match, the response is:
 ```text
 No matches found in log.
 ```
+
+### Execute a command
+
+Send a `POST` to `/commands/<command-name>` to run a configured command.
+Commands use POST because they can change system state.
+
+```bash
+curl -X POST http://localhost:8010/commands/nordvpn-start
+```
+
+On completion the response contains the exit code and captured output. The
+HTTP status is `200` when the command exits with `0`, otherwise `500`:
+
+```json
+{
+	"success": true,
+	"exit_code": 0,
+	"stdout": "...",
+	"stderr": ""
+}
+```
+
+If the command exceeds its `timeout`, it is killed and the response is:
+
+```json
+{
+	"success": false,
+	"error": "Command timed out after 60 seconds"
+}
+```
+
+Unknown command names return `404` with the list of `available_commands`.
+A sudo command without a matching sudoers entry fails with a non-zero exit
+code and a `sudo: a password is required` message in `stderr`.
+
+In `index.html`, commands are listed with a ⚡ icon (logs use 📄). Clicking a
+command shows a confirmation prompt before it is executed.
