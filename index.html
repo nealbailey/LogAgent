@@ -123,10 +123,50 @@
   .status-dot.online { background: var(--ok); }
   .status-dot.offline { background: var(--err); }
 
+  .host-body {
+    display: grid;
+    grid-template-columns: 1fr;
+    padding: 6px 10px 12px;
+  }
+
+  .host-column {
+    min-width: 0;
+  }
+
+  .host-body.split .host-column + .host-column {
+    border-top: 1px solid var(--border);
+    margin-top: 6px;
+    padding-top: 6px;
+  }
+
+  @media (min-width: 560px) {
+    .host-body.split {
+      grid-template-columns: 1fr 1fr;
+      column-gap: 10px;
+    }
+
+    .host-body.split .host-column + .host-column {
+      border-top: none;
+      margin-top: 0;
+      padding-top: 0;
+      border-left: 1px solid var(--border);
+      padding-left: 10px;
+    }
+  }
+
+  .column-title {
+    color: var(--muted);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 8px 12px 2px;
+  }
+
   .log-list {
     list-style: none;
     margin: 0;
-    padding: 6px 10px 12px;
+    padding: 0;
     display: flex;
     flex-direction: column;
     gap: 4px;
@@ -143,6 +183,7 @@
     font-size: 0.9rem;
     background: transparent;
     transition: background 0.15s ease;
+    word-break: break-word;
   }
 
   .log-list a:hover,
@@ -402,16 +443,48 @@ function buildHostCard(hostPort) {
 
   card.appendChild(header);
 
-  const list = document.createElement("ul");
-  list.className = "log-list";
-  card.appendChild(list);
+  const body = document.createElement("div");
+  body.className = "host-body";
+  card.appendChild(body);
 
   hostsContainer.appendChild(card);
 
-  loadHost(hostPort, name, meta, list);
+  loadHost(hostPort, name, meta, body);
 }
 
-async function loadHost(hostPort, nameEl, metaEl, listEl) {
+function buildColumn(title, items, className, onClick) {
+  const column = document.createElement("div");
+  column.className = "host-column";
+
+  const heading = document.createElement("div");
+  heading.className = "column-title";
+  heading.textContent = title;
+  column.appendChild(heading);
+
+  const list = document.createElement("ul");
+  list.className = "log-list";
+
+  items.forEach(({ label, href }) => {
+    const item = document.createElement("li");
+    const link = document.createElement("a");
+
+    link.href = href;
+    link.textContent = label;
+    if (className) link.className = className;
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
+      onClick(label, href);
+    });
+
+    item.appendChild(link);
+    list.appendChild(item);
+  });
+
+  column.appendChild(list);
+  return column;
+}
+
+async function loadHost(hostPort, nameEl, metaEl, bodyEl) {
   const baseUrl = "http://" + hostPort;
 
   try {
@@ -432,58 +505,46 @@ async function loadHost(hostPort, nameEl, metaEl, listEl) {
     //  metaEl.appendChild(makeBadge(null, "limit: " + data.line_limit.lines + " lines"));
     //}
     
-    listEl.innerHTML = "";
+    bodyEl.innerHTML = "";
     const logs = data.logs || [];
 
     if (logs.length === 0 && commandNames.length === 0) {
-      const empty = document.createElement("li");
+      const empty = document.createElement("div");
       empty.className = "empty-text";
       empty.textContent = "No logs configured on this host.";
-      listEl.appendChild(empty);
+      bodyEl.appendChild(empty);
       return;
     }
 
     const hostLabel = data.hostname ? data.hostname.toUpperCase() + " \u2013 " : "";
 
-    logs.forEach((logName) => {
-      const item = document.createElement("li");
-      const link = document.createElement("a");
+    if (logs.length > 0) {
+      bodyEl.appendChild(buildColumn(
+        "Logs",
+        logs.map((logName) => ({ label: logName, href: baseUrl + "/" + encodeURIComponent(logName) })),
+        null,
+        (label, href) => showEndpoint(hostLabel + label, href)
+      ));
+    }
 
-      link.href = baseUrl + "/" + encodeURIComponent(logName);
-      link.textContent = logName;
-      link.addEventListener("click", (event) => {
-        event.preventDefault();
-        showEndpoint(hostLabel + logName, link.href);
-      });
+    if (commandNames.length > 0) {
+      bodyEl.appendChild(buildColumn(
+        "Commands",
+        commandNames.map((commandName) => ({ label: commandName, href: baseUrl + "/commands/" + encodeURIComponent(commandName) })),
+        "command",
+        (label, href) => runCommand(hostLabel + label, href)
+      ));
+    }
 
-      item.appendChild(link);
-      listEl.appendChild(item);
-    });
-
-    commandNames.forEach((commandName) => {
-      const item = document.createElement("li");
-      const link = document.createElement("a");
-      const url = baseUrl + "/commands/" + encodeURIComponent(commandName);
-
-      link.href = "#";
-      link.className = "command";
-      link.textContent = commandName;
-      link.addEventListener("click", (event) => {
-        event.preventDefault();
-        runCommand(hostLabel + commandName, url);
-      });
-
-      item.appendChild(link);
-      listEl.appendChild(item);
-    });
+    bodyEl.classList.toggle("split", logs.length > 0 && commandNames.length > 0);
   } catch (err) {
     metaEl.innerHTML = "";
     metaEl.appendChild(makeBadge("offline", hostPort));
 
-    const errorItem = document.createElement("li");
+    const errorItem = document.createElement("div");
     errorItem.className = "error-text";
     errorItem.textContent = "Unreachable: " + err.message;
-    listEl.appendChild(errorItem);
+    bodyEl.appendChild(errorItem);
   }
 }
 
