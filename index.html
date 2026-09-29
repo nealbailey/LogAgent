@@ -279,18 +279,23 @@
     flex-shrink: 0;
   }
 
-  .modal-raw-link {
+  .modal-raw-link,
+  .modal-bottom-btn {
     color: var(--accent);
     text-decoration: none;
+    font: inherit;
     font-size: 0.8rem;
     font-weight: 600;
     white-space: nowrap;
     padding: 5px 10px;
+    border: none;
     border-radius: 999px;
     background: var(--accent-soft);
+    cursor: pointer;
   }
 
-  .modal-raw-link:hover {
+  .modal-raw-link:hover,
+  .modal-bottom-btn:hover {
     text-decoration: underline;
   }
 
@@ -328,6 +333,7 @@
     <div class="modal-header">
       <div class="modal-title" id="modal-title">Loading&hellip;</div>
       <div class="modal-actions">
+        <button class="modal-bottom-btn" id="modal-bottom-btn" type="button">Bottom ↓</button>
         <a class="modal-raw-link" id="modal-raw-link" href="#" target="_blank" rel="noopener">Raw ↗</a>
         <button class="modal-close" id="modal-close" aria-label="Close">&times;</button>
       </div>
@@ -367,6 +373,9 @@ function closeModal() {
 }
 
 document.getElementById("modal-close").addEventListener("click", closeModal);
+document.getElementById("modal-bottom-btn").addEventListener("click", () => {
+  modalBody.scrollTo({ top: modalBody.scrollHeight, behavior: "smooth" });
+});
 modalBackdrop.addEventListener("click", (event) => {
   if (event.target === modalBackdrop) closeModal();
 });
