@@ -507,9 +507,9 @@ async function loadHost(hostPort, nameEl, metaEl, bodyEl) {
     metaEl.innerHTML = "";
     metaEl.appendChild(makeBadge("online", hostPort));
     if (data.build_version) metaEl.appendChild(makeBadge(null, "v" + data.build_version));
-    metaEl.appendChild(makeBadge(null, (data.logs || []).length + " logs"));
+    //metaEl.appendChild(makeBadge(null, (data.logs || []).length + " logs"));
     const commandNames = data.commands || [];
-    if (commandNames.length > 0) metaEl.appendChild(makeBadge(null, commandNames.length + " commands"));
+    //if (commandNames.length > 0) metaEl.appendChild(makeBadge(null, commandNames.length + " commands"));
     //if (data.line_limit && data.line_limit.enabled) {
     //  metaEl.appendChild(makeBadge(null, "limit: " + data.line_limit.lines + " lines"));
     //}
@@ -520,7 +520,7 @@ async function loadHost(hostPort, nameEl, metaEl, bodyEl) {
     if (logs.length === 0 && commandNames.length === 0) {
       const empty = document.createElement("div");
       empty.className = "empty-text";
-      empty.textContent = "No logs configured on this host.";
+      empty.textContent = "No logs or commands configured on this host.";
       bodyEl.appendChild(empty);
       return;
     }
