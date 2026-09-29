@@ -1,5 +1,15 @@
 # LogAgent
-Tiny log reader. This agent provides remote access to pre-determined log files on the host. Its designed and optimized to require no external dependencies and be as small and quick as possible.
+
+[![Python 3](https://img.shields.io/badge/Python-3-blue?logo=python&logoColor=white)](https://www.python.org/)
+[![HTML5](https://img.shields.io/badge/HTML5-dashboard-E34F26?logo=html5&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/HTML)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+[![Zero dependencies](https://img.shields.io/badge/dependencies-zero-brightgreen)](#)
+[![GitHub stars](https://img.shields.io/github/stars/nealbailey/LogAgent?style=flat)](https://github.com/nealbailey/LogAgent/stargazers)
+
+## Dashboard
+
+![LogAgent dashboard](dashboard.png)
+Tiny log reader. This agent provides remote access to pre-determined log files (and scripts) on the host. Its designed and optimized to require no external dependencies and be as small and quick as possible.
 
 ## Installation
 
