@@ -30,7 +30,7 @@ from logreader import read_log
 
 HOST = "0.0.0.0"
 PORT = 8010
-BUILD_VERSION = "1.8.0"  # increment on every change so clients can detect stale versions
+BUILD_VERSION = "1.8.1"  # increment on every change so clients can detect stale versions
 
 CONFIG_FILE = Path(__file__).with_name("logagent.json")
 with CONFIG_FILE.open(encoding="utf-8") as config_file:
@@ -50,7 +50,11 @@ def execute_command(command: dict) -> dict:
 
     # sudo is only used when explicitly set to true in the config
     if command.get("sudo") is True:
-        argv = ["sudo", "-n", *argv]
+        sudo_argv = ["sudo", "-n"]
+        sudo_user = command.get("sudo_user")
+        if sudo_user:
+            sudo_argv.extend(["-u", sudo_user, "-H"])
+        argv = [*sudo_argv, "--", *argv]
 
     try:
         result = subprocess.run(

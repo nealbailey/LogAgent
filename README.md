@@ -64,6 +64,25 @@ Tiny log reader. This agent provides remote access to pre-determined log files (
 	| `args`        | No       | `[]`    | Array of arguments passed to the command.                          |
 	| `timeout`     | No       | `60`    | Seconds to allow the command to run before it is forcibly killed.  |
 	| `sudo`        | No       | `false` | Run the command via `sudo -n`. Only enabled when explicitly `true`. |
+	| `sudo_user`   | No       | Unset   | Target user for sudo; adds `-u <user> -H`. Ignored unless `sudo` is `true`. |
+
+	For example, to start a VirtualBox VM as `developer`:
+
+	```json
+	"vbox-w10vmdev01-start": {
+	  "description": "Start W10VMDEV01",
+	  "command": "/usr/bin/VBoxManage",
+	  "args": ["startvm", "W10VMDEV01", "--type", "headless"],
+	  "sudo": true,
+	  "sudo_user": "developer",
+	  "timeout": 60
+	}
+	```
+
+	This runs `sudo -n -u developer -H -- /usr/bin/VBoxManage startvm W10VMDEV01 --type headless`.
+	`-H` requests the target user's home directory as `HOME`; it does not change
+	the working directory. Without `sudo_user`, sudo uses its default target
+	user (normally root).
 
 	> **Important: commands with `"sudo": true` require a sudoers entry.**
 	> The `logagent` user does not, and should not, have general admin/sudo
@@ -75,6 +94,12 @@ Tiny log reader. This agent provides remote access to pre-determined log files (
 	> ```text
 	> logagent ALL=(root) NOPASSWD: /home/developer/git/Bash/nordvpn.sh
 	> logagent ALL=(root) NOPASSWD: /home/developer/git/Bash/killswitch.sh
+	> ```
+	>
+	> When using `sudo_user`, the rule must permit that target user and command:
+	>
+	> ```text
+	> logagent ALL=(developer) NOPASSWD: /usr/bin/VBoxManage startvm W10VMDEV01 --type headless
 	> ```
 	>
 	> Only grant the exact script paths configured in `logagent.json`. Make sure
@@ -186,7 +211,7 @@ curl -l http://localhost:8010/
 {
 	"hostname": "popos-desktop",
 	"port": 8010,
-	"build_version": "1.8.0",
+	"build_version": "1.8.1",
 	"line_limit": {
 		"enabled": true,
 		"lines": 200
